@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>亲爱宝贝的点餐系统</title>
+  <!-- 引入Tailwind CSS，无需本地安装 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 引入字体图标，用于购物车/加减号 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .food-card {
+        @apply bg-white rounded-lg shadow-md overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] duration-300;
+      }
+      .btn-num {
+        @apply w-8 h-8 rounded-full flex items-center justify-center border border-gray-200 hover:bg-orange-500 hover:text-white transition-colors;
+      }
+      .category-active {
+        @apply bg-orange-500 text-white;
+      }
+    }
+    body {
+      background-color: #f8f8f8;
+      padding-bottom: 120px; /* 给底部购物车留空间 */
+    }
+    /* 分类横向滚动无滚动条 */
+    .category-scroll::-webkit-scrollbar {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部导航 -->
+  <header class="sticky top-0 bg-white shadow-sm py-3 px-4 z-10">
+    <h1 class="text-center text-xl font-bold text-gray-800">🍽️ 可爱宝宝 · 点餐空间</h1>
+  </header>
+
+  <main class="container mx-auto px-3 mt-4">
+    <!-- 菜品分类栏 -->
+    <div class="category-scroll overflow-x-auto mb-4">
+      <div class="flex gap-2 whitespace-nowrap pb-2">
+        <button class="category-btn category-active px-4 py-2 rounded-full text-sm transition-colors" data-type="all">全部菜品</button>
+        <button class="category-btn px-4 py-2 rounded-full text-sm transition-colors" data-type="hot">爱心推荐</button>
+        <button class="category-btn px-4 py-2 rounded-full text-sm transition-colors" data-type="food">主食套餐</button>
+        <button class="category-btn px-4 py-2 rounded-full text-sm transition-colors" data-type="snack">小吃点心</button>
+        <button class="category-btn px-4 py-2 rounded-full text-sm transition-colors" data-type="drink">饮品奶茶</button>
+        <button class="category-btn px-4 py-2 rounded-full text-sm transition-colors" data-type="soup">汤品粥品</button>
+      </div>
+    </div>
+
+    <!-- 菜品展示区 -->
+    <div class="food-list grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- 菜品由JS动态渲染 -->
+    </div>
+  </main>
+
+  <!-- 底部购物车（固定）核心组件 -->
+  <footer class="fixed bottom-0 left-0 right-0 bg-white shadow-lg border-t border-gray-200">
+    <div class="cart-bar px-4 py-3 flex justify-between items-center">
+      <div class="cart-icon relative" id="cartToggle">
+        <i class="fa-solid fa-cart-shopping text-2xl text-orange-500"></i>
+        <span class="cart-badge absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white text-xs flex items-center justify-center">0</span>
+        <span class="ml-2 font-medium">宝贝餐盘</span>
+      </div>
+      <div class="cart-price flex items-center gap-4">
+        <span class="text-lg font-bold">合计：<span class="total-price text-red-500">¥0.00</span></span>
+        <button class="checkout-btn bg-orange-500 text-white px-6 py-2 rounded-full font-medium hover:bg-orange-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed">亲亲下单</button>
+      </div>
+    </div>
+    <!-- 宝宝的餐盘详情面板 -->
+    <div class="cart-detail hidden px-4 py-3 bg-gray-50 max-h-80 overflow-y-auto border-t border-gray-200">
+      <div class="cart-empty text-center py-6 text-gray-500">
+        <i class="fa-solid fa-empty-set text-3xl mb-2"></i>
+        <p>餐盘还是空的，宝贝快去选点美食吧～</p>
+      </div>
+      <div class="cart-items hidden space-y-2"></div>
+      <div class="cart-footer mt-3 flex justify-between items-center pt-2 border-t border-gray-200">
+        <button class="clear-cart text-gray-500 hover:text-red-500 text-sm"><i class="fa-solid fa-trash"></i> 清空餐盘</button>
+        <span class="text-base font-bold">总计：<span class="total-price text-red-500">¥0.00</span></span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // ========== 1. 点餐系统 菜品数据源【可直接修改/新增/删除，按需改】 ==========
+const foodData = [
+      { id: 1, name: "红烧肉", price: 520, desc: "毛氏红烧肉，入口即化", type: "hot", img: "https://picsum.photos/id/287/300/200" },
+      { id: 2, name: "干煸炒面", price: 520, desc: "新疆特色", type: "food", img: "https://picsum.photos/id/431/300/200" },
+      { id: 3, name: "小酥肉", price: 520, desc: "外酥里嫩，香的很", type: "snack", img: "https://picsum.photos/id/481/300/200" },
+      { id: 4, name: "珍珠奶茶", price: 520, desc: "大颗黑糖珍珠+丝滑奶茶，甜度可选", type: "drink", img: "https://picsum.photos/id/429/300/200" },
+      { id: 5, name: "豌豆炒肉", price: 520, desc: "酸甜可口，汤汁拌饭超香", type: "hot", img: "https://picsum.photos/id/292/300/200" },
+      { id: 6, name: "紫菜蛋花汤", price: 520, desc: "鲜香暖胃，解腻必备", type: "soup", img: "https://picsum.photos/id/327/300/200" },
+      { id: 7, name: "四季豆炒肉", price: 520, desc: "超级下饭", type: "hot", img: "https://picsum.photos/id/327/300/200" },
+];
+    // ========== 2. 全局变量 ==========
+    const cartList = []; // 购物车数组，存储选中的菜品 {id,name,price,num}
+    const foodListEl = document.querySelector('.food-list');
+    const cartBadgeEl = document.querySelector('.cart-badge');
+    const totalPriceEl = document.querySelectorAll('.total-price');
+    const cartDetailEl = document.querySelector('.cart-detail');
+    const cartItemsEl = document.querySelector('.cart-items');
+    const cartEmptyEl = document.querySelector('.cart-empty');
+    const checkoutBtn = document.querySelector('.checkout-btn');
+
+    // ========== 3. 初始化页面：渲染所有菜品 ==========
+    renderFoodList(foodData);
+
+    // ========== 4. 事件绑定 ==========
+    // 分类切换事件
+    document.querySelectorAll('.category-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('category-active'));
+        this.classList.add('category-active');
+        const type = this.dataset.type;
+        const filterFood = type === 'all' ? foodData : foodData.filter(item => item.type === type);
+        renderFoodList(filterFood);
+      });
+    });
+
+    // 购物车展开/收起事件
+    document.getElementById('cartToggle').addEventListener('click', () => {
+      cartDetailEl.classList.toggle('hidden');
+    });
+
+    // 清空购物车事件
+    document.querySelector('.clear-cart').addEventListener('click', () => {
+      if (cartList.length === 0) return;
+      if (confirm('确定要清空点餐盘吗？')) {
+        cartList.length = 0;
+        updateCart();
+      }
+    });
+
+    // 结算按钮事件
+    checkoutBtn.addEventListener('click', () => {
+      if (cartList.length === 0) {
+        alert('点餐盘为空，无法结算哦～');
+        return;
+      }
+      alert('✅ 点餐成功！请亲亲你的男朋友完成支付，祝您用餐愉快～');
+    });
+
+    // ========== 核心方法：渲染菜品列表 ==========
+    function renderFoodList(list) {
+      foodListEl.innerHTML = '';
+      list.forEach(item => {
+        const foodItem = document.createElement('div');
+        foodItem.className = 'food-card';
+        foodItem.innerHTML = `
+          <img src="${item.img}" alt="${item.name}" class="w-full h-40 object-cover">
+          <div class="p-3">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="font-bold text-gray-800">${item.name}</h3>
+              <span class="text-red-500 font-bold">¥${item.price.toFixed(2)}</span>
+            </div>
+            <p class="text-sm text-gray-500 line-clamp-2 mb-3">${item.desc}</p>
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-2" data-id="${item.id}">
+                <span class="btn-num minus"><i class="fa-solid fa-minus"></i></span>
+                <span class="num text-sm">0</span>
+                <span class="btn-num plus"><i class="fa-solid fa-plus"></i></span>
+              </div>
+            </div>
+          </div>
+        `;
+        foodListEl.appendChild(foodItem);
+      });
+      // 绑定菜品的加减按钮事件
+      bindFoodNumEvent();
+    }
+
+    // ========== 核心方法：绑定菜品数量加减事件 ==========
+    function bindFoodNumEvent() {
+      // 加号按钮：添加菜品到购物车
+      document.querySelectorAll('.plus').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const parent = this.parentElement;
+          const id = Number(parent.dataset.id);
+          const numEl = parent.querySelector('.num');
+          let num = Number(numEl.innerText);
+          num++;
+          numEl.innerText = num;
+          // 更新购物车
+          addToCart(id, num);
+        });
+      });
+
+      // 减号按钮：减少菜品数量
+      document.querySelectorAll('.minus').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const parent = this.parentElement;
+          const id = Number(parent.dataset.id);
+          const numEl = parent.querySelector('.num');
+          let num = Number(numEl.innerText);
+          if (num <= 0) return; // 数量不能小于0
+          num--;
+          numEl.innerText = num;
+          // 更新购物车
+          addToCart(id, num);
+        });
+      });
+    }
+
+    // ========== 核心方法：添加/更新购物车数据 ==========
+    function addToCart(foodId, num) {
+      const food = foodData.find(item => item.id === foodId);
+      const cartItemIndex = cartList.findIndex(item => item.id === foodId);
+
+      if (num === 0) {
+        // 数量为0，从购物车删除
+        if (cartItemIndex > -1) cartList.splice(cartItemIndex, 1);
+      } else {
+        if (cartItemIndex > -1) {
+          // 菜品已在购物车，更新数量
+          cartList[cartItemIndex].num = num;
+        } else {
+          // 菜品不在购物车，新增
+          cartList.push({ id: food.id, name: food.name, price: food.price, num: num });
+        }
+      }
+      // 更新购物车视图和数据
+      updateCart();
+    }
+
+    // ========== 核心方法：更新购物车所有视图和数据 ==========
+    function updateCart() {
+      // 1. 计算购物车总数量和总金额
+      let totalNum = 0;
+      let totalPrice = 0;
+      cartList.forEach(item => {
+        totalNum += item.num;
+        totalPrice += item.price * item.num;
+      });
+
+      // 2. 更新购物车角标数量
+      cartBadgeEl.innerText = totalNum;
+
+      // 3. 更新合计金额（多处同步更新）
+      totalPriceEl.forEach(el => el.innerText = `❤❤{totalPrice.toFixed(2)}`);
+
+      // 4. 更新购物车详情面板
+      if (cartList.length === 0) {
+        cartEmptyEl.classList.remove('hidden');
+        cartItemsEl.classList.add('hidden');
+        checkoutBtn.disabled = true; // 购物车空，禁用结算
+      } else {
+        cartEmptyEl.classList.add('hidden');
+        cartItemsEl.classList.remove('hidden');
+        checkoutBtn.disabled = false; // 有菜品，启用结算
+        // 渲染购物车菜品列表
+        cartItemsEl.innerHTML = '';
+        cartList.forEach(item => {
+          const cartItem = document.createElement('div');
+          cartItem.className = 'flex justify-between items-center py-2 border-b border-gray-200';
+          cartItem.innerHTML = `
+            <div class="flex flex-col">
+              <span class="font-medium">${item.name}</span>
+              <span class="text-sm text-gray-500">❤{item.price.toFixed(2)}/份</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="cart-minus btn-num text-sm" data-id="❤{item.id}">-</span>
+              <span>${item.num}</span>
+              <span class="cart-plus btn-num text-sm" data-id="❤{item.id}">+</span>
+              <span class="text-red-500 font-medium">❤{(item.price * item.num).toFixed(2)}</span>
+              <span class="cart-del text-gray-400 hover:text-red-500" data-id="❤{item.id}"><i class="fa-solid fa-times"></i></span>
+            </div>
+          `;
+          cartItemsEl.appendChild(cartItem);
+        });
+        // 绑定购物车内的加减/删除事件
+        bindCartItemEvent();
+      }
+    }
+
+    // ========== 核心方法：绑定购物车内菜品的操作事件 ==========
+    function bindCartItemEvent() {
+      // 购物车加号
+      document.querySelectorAll('.cart-plus').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = Number(this.dataset.id);
+          const foodItem = cartList.find(item => item.id === id);
+          foodItem.num++;
+          syncFoodNum(id, foodItem.num);
+          updateCart();
+        });
+      });
+      // 购物车减号
+      document.querySelectorAll('.cart-minus').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = Number(this.dataset.id);
+          const foodItem = cartList.find(item => item.id === id);
+          if (foodItem.num <= 1) {
+            foodItem.num = 0;
+            cartList.splice(cartList.findIndex(item => item.id === id), 1);
+          } else {
+            foodItem.num--;
+          }
+          syncFoodNum(id, foodItem.num);
+          updateCart();
+        });
+      });
+      // 购物车删除单菜品
+      document.querySelectorAll('.cart-del').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const id = Number(this.dataset.id);
+          syncFoodNum(id, 0);
+          cartList.splice(cartList.findIndex(item => item.id === id), 1);
+          updateCart();
+        });
+      });
+    }
+
+    // ========== 辅助方法：同步菜品展示区和购物车的数量 ==========
+    function syncFoodNum(foodId, num) {
+      const numEl = document.querySelector(`[data-id="❤{foodId}"] .num`);
+      if (numEl) numEl.innerText = num;
+    }
+  </script>
+</body>
+</html>
